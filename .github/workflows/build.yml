@@ -2,7 +2,7 @@ name: Build and Publish RecoveryMore
 on: [push]
 
 permissions:
-  contents: write  # This allows the action to create the public release
+  contents: write
 
 jobs:
   build:
@@ -16,12 +16,12 @@ jobs:
       - name: Build Project
         run: cmake --build build --config Release
 
-      - name: Create Release and Upload EXE
-        uses: "marvinpinto/action-automatic-releases@latest"
+      - name: Create or Update Release
+        uses: softprops/action-gh-release@v2
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "latest"
-          prerelease: false
-          title: "RecoveryMore Latest Build"
-          files: |
-            build/Release/RecoveryMore.exe
+          tag_name: latest
+          name: "RecoveryMore Latest Build"
+          files: build/Release/RecoveryMore.exe
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
