@@ -1,7 +1,5 @@
 name: RecoveryMore Smart Build
 on:
-  schedule:
-    - cron: '*/5 * * * *'
   push:
     branches: [ main ]
   workflow_dispatch:
@@ -17,25 +15,31 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
 
       - name: Install WebView2 SDK
         run: vcpkg install webview2:x64-windows
 
       - name: Configure CMake
-        # The toolchain file is the "map" that tells CMake where vcpkg put the headers
         run: cmake -B build -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows
 
       - name: Build Project
         run: cmake --build build --config Release
 
-      - name: Create or Update Release
+      - name: Package Release
+        shell: pwsh
+        run: |
+          mkdir dist
+          copy build/Release/RecoveryMore.exe dist/
+          # This is the "Motor" for Chromium
+          copy C:/vcpkg/installed/x64-windows/bin/WebView2Loader.dll dist/
+          Compress-Archive -Path dist/* -DestinationPath RecoveryMore_Final.zip
+
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           name: "RecoveryMore Latest Build"
-          files: build/Release/RecoveryMore.exe
+          files: RecoveryMore_Final.zip
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
