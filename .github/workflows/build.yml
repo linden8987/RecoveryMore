@@ -33,7 +33,7 @@ jobs:
           copy C:/Windows/System32/vcruntime140.dll dist/
           copy C:/Windows/System32/msvcp140.dll dist/
           # Create the final ZIP
-          Compress-Archive -Path dist/* -DestinationPath RecoveryMore_Suite_With_DLLs.zip
+          Compress-Archive -Path dist/* -DestinationPath RecoveryMore.zip
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
