@@ -1,10 +1,10 @@
 name: RecoveryMore Smart Build
 on:
   schedule:
-    - cron: '*/5 * * * *'  # Runs every 5 minutes
+    - cron: '*/5 * * * *'
   push:
     branches: [ main ]
-  workflow_dispatch:      # Allows you to click "Run workflow" manually
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -18,35 +18,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # Look back at least 2 commits to compare
+          fetch-depth: 2
 
       - name: Check for new changes
         id: check_changes
         shell: bash
         run: |
-          # If triggered by a schedule, check if the last commit was in the last 5 mins
           if [[ "${{ github.event_name }}" == "schedule" ]]; then
             LAST_COMMIT_TIME=$(git log -1 --format=%ct)
             CURRENT_TIME=$(date +%s)
             DIFF=$(( (CURRENT_TIME - LAST_COMMIT_TIME) / 60 ))
-            
             if [ $DIFF -gt 5 ]; then
-              echo "No new changes in the last 5 minutes. Skipping build."
               echo "should_build=false" >> $GITHUB_OUTPUT
             else
-              echo "New changes detected. Proceeding..."
               echo "should_build=true" >> $GITHUB_OUTPUT
             fi
           else
-            # Always build on manual trigger or push
             echo "should_build=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Configure and Build
+      - name: Install WebView2 SDK
         if: steps.check_changes.outputs.should_build == 'true'
-        run: |
-          cmake -B build
-          cmake --build build --config Release
+        run: vcpkg install webview2:x64-windows
+
+      - name: Configure CMake
+        if: steps.check_changes.outputs.should_build == 'true'
+        run: cmake -B build -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
+
+      - name: Build Project
+        if: steps.check_changes.outputs.should_build == 'true'
+        run: cmake --build build --config Release
 
       - name: Create or Update Release
         if: steps.check_changes.outputs.should_build == 'true'
