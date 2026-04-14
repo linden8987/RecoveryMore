@@ -33,8 +33,11 @@ jobs:
           Copy-Item "C:/Windows/System32/vcruntime140_1.dll" -Destination "dist/"
           Copy-Item "C:/Windows/System32/msvcp140.dll" -Destination "dist/"
           
-          # Download and expand the standalone Chromium engine
-          Invoke-WebRequest -Uri "https://msedgeextensions.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/6451a662-7994-4d10-86f3-4e8996e387c2/Microsoft.WebView2.FixedVersionRuntime.110.0.1587.63.x64.cab" -OutFile "runtime.cab"
+          # Download a reliable Fixed Version of the Chromium engine
+          $url = "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/339466c1-229f-4328-912b-7f15e8072a39/Microsoft.WebView2.FixedVersionRuntime.110.0.1587.63.x64.cab"
+          Invoke-WebRequest -Uri $url -OutFile "runtime.cab"
+          
+          # Extract the CAB content into the dist folder
           expand runtime.cab -F:* dist/
           
           Compress-Archive -Path dist/* -DestinationPath RecoveryMore.zip
