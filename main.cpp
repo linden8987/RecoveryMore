@@ -93,7 +93,7 @@ int WINAPI WinMain(HINSTANCE h, HINSTANCE p, LPSTR lp, int n) {
     wc.lpszClassName = "RecoveryMoreGUI";
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     RegisterClass(&wc);
-    HWND hwnd = CreateWindow("RecoveryMoreGUI", "RecoveryMore | Lead Architect Edition", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 100, 1200, 800, NULL, NULL, h, NULL);
+    HWND hwnd = CreateWindow("RecoveryMoreGUI", "RecoveryMore", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 100, 1200, 800, NULL, NULL, h, NULL);
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0)) { TranslateMessage(&msg); DispatchMessage(&msg); }
     return 0;
