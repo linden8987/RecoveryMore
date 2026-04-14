@@ -2,7 +2,7 @@
 #include <shlobj.h>
 #include <string>
 #include <wrl.h>
-#include "WebView2.h" // Chromium Engine
+#include "WebView2.h"
 
 using namespace Microsoft::WRL;
 
@@ -10,7 +10,7 @@ using namespace Microsoft::WRL;
 static ComPtr<ICoreWebView2> webviewWindow;
 HCURSOR hCustomCursor = NULL;
 
-// --- 1. THEME ENGINE: CUSTOM CURSOR ---
+// --- THEME ENGINE: CURSOR ---
 void ApplyThemeCursor(HWND hwnd) {
     char szFile[MAX_PATH];
     OPENFILENAMEA ofn = {0};
@@ -31,13 +31,12 @@ void ApplyThemeCursor(HWND hwnd) {
     }
 }
 
-// --- 2. FILE EXPLORER ENGINE ---
+// --- FILE EXPLORER ENGINE ---
 void LaunchExplorer() {
-    // Opens the 99GB partition or C drive directly
     ShellExecute(NULL, "explore", "C:\\", NULL, NULL, SW_SHOWNORMAL);
 }
 
-// --- 3. CHROMIUM ENGINE ---
+// --- CHROMIUM ENGINE ---
 void StartChromium(HWND hWnd) {
     CreateCoreWebView2EnvironmentWithOptions(nullptr, nullptr, nullptr,
         Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
@@ -48,14 +47,10 @@ void StartChromium(HWND hWnd) {
                         if (controller != nullptr) {
                             ComPtr<ICoreWebView2Controller> webviewController = controller;
                             webviewController->get_CoreWebView2(&webviewWindow);
-                            
-                            // Position Chromium on the bottom half
                             RECT bounds;
                             GetClientRect(hWnd, &bounds);
-                            bounds.top += 150; // Dashboard height
+                            bounds.top += 150; // Dashboard Header Area
                             webviewController->put_Bounds(bounds);
-                            
-                            // Start at your GitHub
                             webviewWindow->Navigate(L"https://github.com/linden8987/RecoveryMore");
                         }
                         return S_OK;
@@ -64,27 +59,22 @@ void StartChromium(HWND hWnd) {
             }).Get());
 }
 
-// --- MAIN UI DASHBOARD ---
+// --- DASHBOARD UI ---
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
         case WM_CREATE:
-            // Integrated Buttons
             CreateWindow("BUTTON", "📂 Open Explorer", WS_VISIBLE | WS_CHILD, 20, 20, 160, 40, hwnd, (HMENU)1, NULL, NULL);
             CreateWindow("BUTTON", "🖱️ Apply Cursor", WS_VISIBLE | WS_CHILD, 20, 70, 160, 40, hwnd, (HMENU)2, NULL, NULL);
-            CreateWindow("STATIC", "RecoveryMore: Chromium Engine Active", WS_VISIBLE | WS_CHILD, 200, 35, 300, 20, hwnd, NULL, NULL, NULL);
-            
             StartChromium(hwnd);
             break;
-
         case WM_COMMAND:
             if (LOWORD(wp) == 1) LaunchExplorer();
             if (LOWORD(wp) == 2) ApplyThemeCursor(hwnd);
             break;
-
         case WM_PAINT: {
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
-            HBRUSH brush = CreateSolidBrush(RGB(0, 35, 0)); // Dark Green Theme
+            HBRUSH brush = CreateSolidBrush(RGB(0, 35, 0)); // Dark Green
             FillRect(hdc, &ps.rcPaint, brush);
             DeleteObject(brush);
             EndPaint(hwnd, &ps);
@@ -100,10 +90,10 @@ int WINAPI WinMain(HINSTANCE h, HINSTANCE p, LPSTR lp, int n) {
     WNDCLASS wc = {0};
     wc.lpfnWndProc = WndProc;
     wc.hInstance = h;
-    wc.lpszClassName = "RecoveryMoreAllInOne";
+    wc.lpszClassName = "RecoveryMoreGUI";
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     RegisterClass(&wc);
-    HWND hwnd = CreateWindow("RecoveryMoreAllInOne", "RecoveryMore | Chromium & Rescue Suite", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 100, 1200, 800, NULL, NULL, h, NULL);
+    HWND hwnd = CreateWindow("RecoveryMoreGUI", "RecoveryMore | Lead Architect Edition", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 100, 1200, 800, NULL, NULL, h, NULL);
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0)) { TranslateMessage(&msg); DispatchMessage(&msg); }
     return 0;
