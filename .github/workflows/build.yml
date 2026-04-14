@@ -4,6 +4,9 @@ on: [push]
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # This stops the Node.js 20 warnings
+
 jobs:
   build:
     runs-on: windows-latest
