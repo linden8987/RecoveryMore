@@ -27,9 +27,16 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item "build/Release/RecoveryMore.exe" -Destination "dist/"
           Copy-Item "C:/vcpkg/installed/x64-windows/bin/WebView2Loader.dll" -Destination "dist/"
+          
+          # Bundle the Runtimes
           Copy-Item "C:/Windows/System32/vcruntime140.dll" -Destination "dist/"
           Copy-Item "C:/Windows/System32/vcruntime140_1.dll" -Destination "dist/"
           Copy-Item "C:/Windows/System32/msvcp140.dll" -Destination "dist/"
+          
+          # Download and expand the standalone Chromium engine
+          Invoke-WebRequest -Uri "https://msedgeextensions.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/6451a662-7994-4d10-86f3-4e8996e387c2/Microsoft.WebView2.FixedVersionRuntime.110.0.1587.63.x64.cab" -OutFile "runtime.cab"
+          expand runtime.cab -F:* dist/
+          
           Compress-Archive -Path dist/* -DestinationPath RecoveryMore.zip
 
       - name: Create Release
