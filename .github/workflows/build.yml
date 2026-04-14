@@ -1,4 +1,4 @@
-name: RecoveryMore Full Bundle
+name: RecoveryMore
 on:
   push:
     branches: [ main ]
@@ -24,23 +24,19 @@ jobs:
       - name: Bundle Dependencies
         shell: pwsh
         run: |
-          mkdir dist
-          # Copy the App
-          copy build/Release/RecoveryMore.exe dist/
-          # Copy Chromium Loader
-          copy C:/vcpkg/installed/x64-windows/bin/WebView2Loader.dll dist/
-          # Copy the "Windows 2000 Error" Fixers (VCRuntime and MSVCP)
-          copy C:/Windows/System32/vcruntime140.dll dist/
-          copy C:/Windows/System32/msvcp140.dll dist/
-          # Create the final ZIP
+          New-Item -ItemType Directory -Force -Path dist
+          Copy-Item "build/Release/RecoveryMore.exe" -Destination "dist/"
+          Copy-Item "C:/vcpkg/installed/x64-windows/bin/WebView2Loader.dll" -Destination "dist/"
+          Copy-Item "C:/Windows/System32/vcruntime140.dll" -Destination "dist/"
+          Copy-Item "C:/Windows/System32/msvcp140.dll" -Destination "dist/"
           Compress-Archive -Path dist/* -DestinationPath RecoveryMore.zip
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: "RecoveryMore Lead Architect Suite"
-          files: RecoveryMore_Suite_With_DLLs.zip
+          name: "RecoveryMore"
+          files: RecoveryMore.zip
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
