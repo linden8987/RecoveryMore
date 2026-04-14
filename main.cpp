@@ -20,7 +20,7 @@ void ApplyThemeCursor(HWND hwnd) {
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
     if (GetOpenFileNameA(&ofn)) {
-        hCustomCursor = (HCURSOR)LoadImageA(NULL, ofn.lpstrFile, IMAGE_CURSOR, 0, 0, LR_LOADFROMFILE);
+        hCustomCursor = (HCURSOR)LoadImageA(NULL, szFile, IMAGE_CURSOR, 0, 0, LR_LOADFROMFILE);
         if (hCustomCursor) {
             SetClassLongPtr(hwnd, GCLP_HCURSOR, (LONG_PTR)hCustomCursor);
             SetCursor(hCustomCursor);
@@ -68,7 +68,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             HBRUSH brush = CreateSolidBrush(RGB(0, 40, 0)); 
             FillRect(hdc, &ps.rcPaint, brush);
             DeleteObject(brush);
-            EndPaint(hwnd, &ps);
+            EndPaint(hdc, &ps);
             break;
         }
         case WM_DESTROY: PostQuitMessage(0); break;
@@ -84,7 +84,7 @@ int WINAPI WinMain(HINSTANCE h, HINSTANCE p, LPSTR lp, int n) {
     wc.lpszClassName = "RecoveryMoreGUI";
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     RegisterClass(&wc);
-    HWND hwnd = CreateWindow("RecoveryMoreGUI", "RecoveryMore | Suite", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 100, 1200, 800, NULL, NULL, h, NULL);
+    HWND hwnd = CreateWindow("RecoveryMoreGUI", "RecoveryMore", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 100, 1200, 800, NULL, NULL, h, NULL);
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0)) { TranslateMessage(&msg); DispatchMessage(&msg); }
     return 0;
