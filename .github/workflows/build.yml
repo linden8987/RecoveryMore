@@ -1,4 +1,4 @@
-name: RecoveryMore Full Bundle
+name: RecoveryMore
 on:
   push:
     branches: [ main ]
@@ -27,7 +27,6 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item "build/Release/RecoveryMore.exe" -Destination "dist/"
           Copy-Item "C:/vcpkg/installed/x64-windows/bin/WebView2Loader.dll" -Destination "dist/"
-          # The Runtime Trinity
           Copy-Item "C:/Windows/System32/vcruntime140.dll" -Destination "dist/"
           Copy-Item "C:/Windows/System32/vcruntime140_1.dll" -Destination "dist/"
           Copy-Item "C:/Windows/System32/msvcp140.dll" -Destination "dist/"
