@@ -55,7 +55,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
         case WM_CREATE:
             CreateWindow("BUTTON", "📂 Open Explorer", WS_VISIBLE | WS_CHILD, 20, 20, 160, 40, hwnd, (HMENU)1, NULL, NULL);
-            CreateWindow("BUTTON", "🖱️ Apply Cursor", WS_VISIBLE | WS_CHILD, 20, 70, 160, 40, hwnd, (HMENU)2, NULL, NULL);
+            CreateWindow("BUTTON", "鼠标 Apply Cursor", WS_VISIBLE | WS_CHILD, 20, 70, 160, 40, hwnd, (HMENU)2, NULL, NULL);
             StartChromium(hwnd);
             break;
         case WM_COMMAND:
@@ -68,7 +68,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             HBRUSH brush = CreateSolidBrush(RGB(0, 40, 0)); 
             FillRect(hdc, &ps.rcPaint, brush);
             DeleteObject(brush);
-            EndPaint(hdc, &ps);
+            EndPaint(hwnd, &ps); // FIXED: Changed hdc to hwnd
             break;
         }
         case WM_DESTROY: PostQuitMessage(0); break;
