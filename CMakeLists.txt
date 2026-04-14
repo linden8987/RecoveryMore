@@ -1,18 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(RecoveryMore)
-
 set(CMAKE_CXX_STANDARD 17)
-
 include_directories("C:/vcpkg/installed/x64-windows/include")
 link_directories("C:/vcpkg/installed/x64-windows/lib")
-
 add_executable(RecoveryMore WIN32 main.cpp)
-
-target_link_libraries(RecoveryMore PRIVATE 
-    "C:/vcpkg/installed/x64-windows/lib/WebView2Loader.dll.lib"
-    user32 
-    gdi32 
-    shell32 
-    comdlg32 
-    ole32
-)
+target_link_libraries(RecoveryMore PRIVATE "C:/vcpkg/installed/x64-windows/lib/WebView2Loader.dll.lib" user32 gdi32 shell32 comdlg32 ole32)
