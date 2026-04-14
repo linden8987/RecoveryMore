@@ -6,13 +6,11 @@
 
 using namespace Microsoft::WRL;
 
-// Globals
 static ComPtr<ICoreWebView2> webviewWindow;
 HCURSOR hCustomCursor = NULL;
 
-// --- THEME: CURSOR SWAP ---
 void ApplyThemeCursor(HWND hwnd) {
-    char szFile[MAX_PATH];
+    char szFile[MAX_PATH] = {0};
     OPENFILENAMEA ofn = {0};
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = hwnd;
@@ -30,16 +28,11 @@ void ApplyThemeCursor(HWND hwnd) {
     }
 }
 
-// --- FILE EXPLORER ---
-void LaunchExplorer() {
-    ShellExecute(NULL, "explore", "C:\\", NULL, NULL, SW_SHOWNORMAL);
-}
-
-// --- CHROMIUM ENGINE ---
 void StartChromium(HWND hWnd) {
     CreateCoreWebView2EnvironmentWithOptions(nullptr, nullptr, nullptr,
         Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
             [hWnd](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
+                if (FAILED(result)) return result;
                 env->CreateCoreWebView2Controller(hWnd, 
                     Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
                     [hWnd](HRESULT result, ICoreWebView2Controller* controller) -> HRESULT {
@@ -48,7 +41,7 @@ void StartChromium(HWND hWnd) {
                             webviewController->get_CoreWebView2(&webviewWindow);
                             RECT bounds;
                             GetClientRect(hWnd, &bounds);
-                            bounds.top += 150; // Room for the green dashboard
+                            bounds.top += 150; 
                             webviewController->put_Bounds(bounds);
                             webviewWindow->Navigate(L"https://github.com/linden8987/RecoveryMore");
                         }
@@ -58,7 +51,6 @@ void StartChromium(HWND hWnd) {
             }).Get());
 }
 
-// --- WINDOWS UI ---
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
         case WM_CREATE:
@@ -67,13 +59,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             StartChromium(hwnd);
             break;
         case WM_COMMAND:
-            if (LOWORD(wp) == 1) LaunchExplorer();
+            if (LOWORD(wp) == 1) ShellExecute(NULL, "explore", "C:\\", NULL, NULL, SW_SHOWNORMAL);
             if (LOWORD(wp) == 2) ApplyThemeCursor(hwnd);
             break;
         case WM_PAINT: {
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
-            HBRUSH brush = CreateSolidBrush(RGB(0, 40, 0)); // Dark Green
+            HBRUSH brush = CreateSolidBrush(RGB(0, 40, 0)); 
             FillRect(hdc, &ps.rcPaint, brush);
             DeleteObject(brush);
             EndPaint(hwnd, &ps);
@@ -92,7 +84,7 @@ int WINAPI WinMain(HINSTANCE h, HINSTANCE p, LPSTR lp, int n) {
     wc.lpszClassName = "RecoveryMoreGUI";
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     RegisterClass(&wc);
-    HWND hwnd = CreateWindow("RecoveryMoreGUI", "RecoveryMore", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 100, 1200, 800, NULL, NULL, h, NULL);
+    HWND hwnd = CreateWindow("RecoveryMoreGUI", "RecoveryMore | Suite", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 100, 1200, 800, NULL, NULL, h, NULL);
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0)) { TranslateMessage(&msg); DispatchMessage(&msg); }
     return 0;
