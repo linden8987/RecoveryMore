@@ -3,14 +3,15 @@ project(RecoveryMore)
 
 set(CMAKE_CXX_STANDARD 17)
 
-# The "vcpkg way" to find webview2 if CONFIG fails
-find_package(webview2 REQUIRED)
+# Manually point to the WebView2 include directory in vcpkg
+include_directories("C:/vcpkg/installed/x64-windows/include")
+link_directories("C:/vcpkg/installed/x64-windows/lib")
 
 add_executable(RecoveryMore WIN32 main.cpp)
 
-# Link using the standard variable names vcpkg provides
+# Link the specific WebView2 import library and Windows subsystems
 target_link_libraries(RecoveryMore PRIVATE 
-    webview2
+    WebView2Loader.dll.lib
     user32 
     gdi32 
     shell32 
