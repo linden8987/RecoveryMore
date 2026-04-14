@@ -28,17 +28,14 @@ jobs:
           Copy-Item "build/Release/RecoveryMore.exe" -Destination "dist/"
           Copy-Item "C:/vcpkg/installed/x64-windows/bin/WebView2Loader.dll" -Destination "dist/"
           
-          # Bundle the Runtimes
+          # The DLL Trinity
           Copy-Item "C:/Windows/System32/vcruntime140.dll" -Destination "dist/"
           Copy-Item "C:/Windows/System32/vcruntime140_1.dll" -Destination "dist/"
           Copy-Item "C:/Windows/System32/msvcp140.dll" -Destination "dist/"
           
-          # Download a reliable Fixed Version of the Chromium engine
-          $url = "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/339466c1-229f-4328-912b-7f15e8072a39/Microsoft.WebView2.FixedVersionRuntime.110.0.1587.63.x64.cab"
-          Invoke-WebRequest -Uri $url -OutFile "runtime.cab"
-          
-          # Extract the CAB content into the dist folder
-          expand runtime.cab -F:* dist/
+          # Use the permanent redirect link for the Standalone Runtime
+          $url = "https://go.microsoft.com/fwlink/p/?LinkId=2124703" 
+          Invoke-WebRequest -Uri $url -OutFile "dist/MicrosoftEdgeWebview2Setup.exe"
           
           Compress-Archive -Path dist/* -DestinationPath RecoveryMore.zip
 
