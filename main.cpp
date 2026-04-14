@@ -1,70 +1,39 @@
 #include <windows.h>
-#include <commctrl.h>
-#include <string>
+#include <stdlib.h>
+#include <tchar.h>
+#include <wrl.h>
+#include <wil/com.h>
+#include "WebView2.h" // The Chromium Engine Header
 
-// Global Variables
-HINSTANCE hInst;
-HCURSOR hCustomCursor = NULL;
+using namespace Microsoft::WRL;
 
-// Function to update the cursor from a file path
-void UpdateCursor(HWND hwnd, std::string path) {
-    hCustomCursor = (HCURSOR)LoadImageA(NULL, path.c_str(), IMAGE_CURSOR, 0, 0, LR_LOADFROMFILE);
-    if (hCustomCursor) {
-        SetClassLongPtr(hwnd, GCLP_HCURSOR, (LONG_PTR)hCustomCursor);
-        SetCursor(hCustomCursor);
-    }
+// Global Chromium Controller
+static Pointer<ICoreWebView2Controller> webviewController;
+static Pointer<ICoreWebView2> webview;
+
+// Function to Initialize the Chromium Browser
+void InitChromium(HWND hWnd) {
+    CreateCoreWebView2EnvironmentWithOptions(nullptr, nullptr, nullptr,
+        Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
+            [hWnd](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
+                env->CreateCoreWebView2Controller(hWnd, Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
+                    [hWnd](HRESULT result, ICoreWebView2Controller* controller) -> HRESULT {
+                        if (controller != nullptr) {
+                            webviewController = controller;
+                            webviewController->get_CoreWebView2(&webview);
+                        }
+                        // Set the Chromium window size
+                        RECT bounds;
+                        GetClientRect(hWnd, &bounds);
+                        bounds.top += 250; // Leave room for your Green Dashboard buttons
+                        webviewController->put_Bounds(bounds);
+
+                        // Navigate to your Wiki or Google
+                        webview->Navigate(L"https://www.google.com");
+                        return S_OK;
+                    }).Get());
+                return S_OK;
+            }).Get());
 }
 
-// Window Procedure
-LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
-    switch (msg) {
-        case WM_PAINT: {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hwnd, &ps);
-            // Lead Architect Theme: Dark Green Gradient simulation
-            HBRUSH brush = CreateSolidBrush(RGB(0, 30, 0));
-            FillRect(hdc, &ps.rcPaint, brush);
-            DeleteObject(brush);
-            EndPaint(hwnd, &ps);
-            break;
-        }
-        case WM_CREATE: {
-            // Add a simple button to simulate "Open Browser"
-            CreateWindow("BUTTON", "Launch Browser", WS_VISIBLE | WS_CHILD, 20, 20, 150, 40, hwnd, (HMENU)1, NULL, NULL);
-            // Add a button for "File Explorer"
-            CreateWindow("BUTTON", "File Explorer", WS_VISIBLE | WS_CHILD, 20, 80, 150, 40, hwnd, (HMENU)2, NULL, NULL);
-            break;
-        }
-        case WM_COMMAND: {
-            if (LOWORD(wp) == 1) MessageBox(hwnd, "Browser Module Loading...", "RecoveryMore", MB_OK);
-            if (LOWORD(wp) == 2) MessageBox(hwnd, "Explorer Module Loading...", "RecoveryMore", MB_OK);
-            break;
-        }
-        case WM_DESTROY:
-            PostQuitMessage(0);
-            break;
-        default:
-            return DefWindowProc(hwnd, msg, wp, lp);
-    }
-    return 0;
-}
-
-int WINAPI WinMain(HINSTANCE h, HINSTANCE p, LPSTR lp, int n) {
-    hInst = h;
-    WNDCLASS wc = {0};
-    wc.lpfnWndProc = WndProc;
-    wc.hInstance = h;
-    wc.lpszClassName = "RM_GUI";
-    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-    
-    RegisterClass(&wc);
-    HWND hwnd = CreateWindow("RM_GUI", "RecoveryMore - Lead Architect Edition", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 100, 1024, 768, NULL, NULL, h, NULL);
-
-    MSG msg = {0};
-    while (GetMessage(&msg, NULL, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-    }
-    return 0;
-}
+// ... rest of your WndProc with button 3 calling InitChromium(hwnd) ...
