@@ -1,4 +1,4 @@
-name: RecoveryMore Smart Build
+name: RecoveryMore Full Bundle
 on:
   push:
     branches: [ main ]
@@ -16,26 +16,31 @@ jobs:
       - name: Install WebView2 SDK
         run: vcpkg install webview2:x64-windows
 
-      - name: Configure CMake
-        run: cmake -B build -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows
+      - name: Configure and Build
+        run: |
+          cmake -B build -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows
+          cmake --build build --config Release
 
-      - name: Build Project
-        run: cmake --build build --config Release
-
-      - name: Package Release
+      - name: Bundle Dependencies
         shell: pwsh
         run: |
           mkdir dist
+          # Copy the App
           copy build/Release/RecoveryMore.exe dist/
+          # Copy Chromium Loader
           copy C:/vcpkg/installed/x64-windows/bin/WebView2Loader.dll dist/
-          Compress-Archive -Path dist/* -DestinationPath RecoveryMore_Final.zip
+          # Copy the "Windows 2000 Error" Fixers (VCRuntime and MSVCP)
+          copy C:/Windows/System32/vcruntime140.dll dist/
+          copy C:/Windows/System32/msvcp140.dll dist/
+          # Create the final ZIP
+          Compress-Archive -Path dist/* -DestinationPath RecoveryMore_Suite_With_DLLs.zip
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: "RecoveryMore Latest Build"
-          files: RecoveryMore_Final.zip
+          name: "RecoveryMore Lead Architect Suite"
+          files: RecoveryMore_Suite_With_DLLs.zip
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
