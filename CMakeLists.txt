@@ -3,12 +3,12 @@ project(RecoveryMore)
 
 set(CMAKE_CXX_STANDARD 17)
 
-# Find the WebView2 package installed by vcpkg
+# Find WebView2 from the vcpkg installation
 find_package(webview2 CONFIG REQUIRED)
 
 add_executable(RecoveryMore WIN32 main.cpp)
 
-# Link Chromium (WebView2), UI, and Explorer libraries
+# Linking the Chromium, UI, and File System libraries
 target_link_libraries(RecoveryMore PRIVATE 
     webview2::Microsoft.Web.WebView2 
     user32 
