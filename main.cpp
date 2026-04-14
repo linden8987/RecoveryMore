@@ -6,18 +6,17 @@
 
 using namespace Microsoft::WRL;
 
-// Global State
+// Globals
 static ComPtr<ICoreWebView2> webviewWindow;
 HCURSOR hCustomCursor = NULL;
 
-// --- THEME ENGINE: CURSOR ---
+// --- THEME: CURSOR SWAP ---
 void ApplyThemeCursor(HWND hwnd) {
     char szFile[MAX_PATH];
     OPENFILENAMEA ofn = {0};
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = hwnd;
     ofn.lpstrFile = szFile;
-    ofn.lpstrFile[0] = '\0';
     ofn.nMaxFile = sizeof(szFile);
     ofn.lpstrFilter = "Cursor Files (*.cur;*.ani)\0*.cur;*.ani\0All Files\0*.*\0";
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
@@ -31,7 +30,7 @@ void ApplyThemeCursor(HWND hwnd) {
     }
 }
 
-// --- FILE EXPLORER ENGINE ---
+// --- FILE EXPLORER ---
 void LaunchExplorer() {
     ShellExecute(NULL, "explore", "C:\\", NULL, NULL, SW_SHOWNORMAL);
 }
@@ -49,7 +48,7 @@ void StartChromium(HWND hWnd) {
                             webviewController->get_CoreWebView2(&webviewWindow);
                             RECT bounds;
                             GetClientRect(hWnd, &bounds);
-                            bounds.top += 150; // Dashboard Header Area
+                            bounds.top += 150; // Room for the green dashboard
                             webviewController->put_Bounds(bounds);
                             webviewWindow->Navigate(L"https://github.com/linden8987/RecoveryMore");
                         }
@@ -59,7 +58,7 @@ void StartChromium(HWND hWnd) {
             }).Get());
 }
 
-// --- DASHBOARD UI ---
+// --- WINDOWS UI ---
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
         case WM_CREATE:
@@ -74,7 +73,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_PAINT: {
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
-            HBRUSH brush = CreateSolidBrush(RGB(0, 35, 0)); // Dark Green
+            HBRUSH brush = CreateSolidBrush(RGB(0, 40, 0)); // Dark Green
             FillRect(hdc, &ps.rcPaint, brush);
             DeleteObject(brush);
             EndPaint(hwnd, &ps);
