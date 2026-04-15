@@ -6,9 +6,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_definitions(-DUNICODE -D_UNICODE -DWIN32_LEAN_AND_MEAN)
 
-# Standard vcpkg include path
-include_directories("${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include")
+# 1. THE TRICK: We include the folder ABOVE 'include'
+# This allows your code's "include/..." path to resolve correctly.
+include_directories("${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
 
+# 2. SOURCE FILES (Including everything in your repo)
 add_executable(RecoveryMore 
     src/main.cpp 
     src/app.cpp
@@ -18,12 +20,17 @@ add_executable(RecoveryMore
     src/resources.rc
 )
 
+# 3. LINKER SETTINGS
 link_directories("${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")
 
 target_link_libraries(RecoveryMore PRIVATE 
     libcef 
     libcef_dll_wrapper
-    ws2_32 shell32 user32 gdi32 ole32
+    ws2_32 
+    shell32 
+    user32 
+    gdi32 
+    ole32
 )
 
 set_target_properties(RecoveryMore PROPERTIES WIN32_EXECUTABLE TRUE)
