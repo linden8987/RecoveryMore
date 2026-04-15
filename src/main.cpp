@@ -1,40 +1,58 @@
 #include <windows.h>
-#include <iostream>
 #include <fstream>
 #include <string>
+#include <filesystem>
+#include <vector>
 
-// --- ARCHITECTURAL COMPONENT: THE UPDATER ---
-// This upgrades the tool in its current directory without touching the system.
-void CheckForUpgrades() {
-    // 1. Check GitHub API for the 'latest' release tag
-    // 2. Compare with current version
-    // 3. If newer: 
-    //    - Download 'RecoveryMore_New.exe' to current folder
-    //    - Launch a small batch script to swap the files
+namespace fs = std::filesystem;
+
+// Clears everything in the current folder except the running program
+void CleanCurrentDirectory() {
+    wchar_t szPath[MAX_PATH];
+    if (GetModuleFileNameW(NULL, szPath, MAX_PATH) == 0) return;
     
-    /* Example of the "Swap" logic:
-    system("cmd /c \"timeout /t 2 > nul && move /y RecoveryMore_New.exe RecoveryMore.exe && start RecoveryMore.exe\"");
-    exit(0);
-    */
+    fs::path currentExe(szPath);
+    fs::path currentDir = currentExe.parent_path();
+
+    try {
+        for (const auto& entry : fs::directory_iterator(currentDir)) {
+            // Never delete the running executable or the update script
+            if (entry.path() != currentExe && entry.path().filename() != "update.bat") {
+                fs::remove_all(entry.path());
+            }
+        }
+    } catch (...) {
+        // Ignore errors if files are locked
+    }
 }
 
-// --- ARCHITECTURAL COMPONENT: THE UI ---
-void LaunchUnifiedUI() {
-    // Your Chromium Tabs and File Explorer logic here.
-    // It runs directly from the current directory.
-    MessageBoxW(NULL, L"RecoveryMore Portable: Running with Self-Upgrade support.", L"Safe Mode", MB_OK);
+// Swaps the old exe with the new one if it exists
+void ApplyUpdate() {
+    if (fs::exists("RecoveryMore_New.exe")) {
+        std::ofstream batch("update.bat");
+        batch << "@echo off\n"
+              << "timeout /t 1 /nobreak > nul\n"
+              << "del RecoveryMore.exe\n"
+              << "move RecoveryMore_New.exe RecoveryMore.exe\n"
+              << "start RecoveryMore.exe\n"
+              << "del \"%~f0\"";
+        batch.close();
+
+        ShellExecuteW(NULL, L"open", L"update.bat", NULL, NULL, SW_HIDE);
+        exit(0);
+    }
 }
 
-// --- ENTRY POINT ---
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
-    
-    // 1. Check for upgrades first
-    // This ensures you are always running the latest 'Lead Architect' version
-    CheckForUpgrades();
+    // 1. Update first so we run the newest version
+    ApplyUpdate();
 
-    // 2. Launch the full Browser/Explorer environment
-    // No installation, no system changes.
-    LaunchUnifiedUI();
-    
+    // 2. Wipe the rest of the SD card/folder to stay clean
+    CleanCurrentDirectory();
+
+    // 3. Main Logic
+    // This is where your browser tabs and explorer code from src/ would launch
+    MessageBoxW(NULL, L"SD Card cleaned. Running latest version.", L"RecoveryMore", MB_OK);
+
     return 0;
 }
