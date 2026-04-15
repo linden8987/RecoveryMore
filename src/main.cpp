@@ -9,116 +9,106 @@
 #include <fstream>
 #include <string>
 #include <filesystem>
-#include <vector>
 #include <thread>
+#include <wrl.h>
+#include <WebView2.h>
 
 namespace fs = std::filesystem;
+using namespace Microsoft::WRL;
+
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "shell32.lib")
 
-// --- 1. THE UPDATER: Swaps binaries if a new one is found ---
-void ApplyUpdates() {
+// --- 1. MAINTENANCE & PROTECTION ---
+void PerformMaintenance() {
+    // UPDATER: Swaps RecoveryMore_New.exe into place
     if (fs::exists("RecoveryMore_New.exe")) {
         std::ofstream batch("update.bat");
-        batch << "@echo off\ntimeout /t 1 /nobreak > nul\n"
-              << "del RecoveryMore.exe\n"
-              << "move RecoveryMore_New.exe RecoveryMore.exe\n"
-              << "start RecoveryMore.exe\n"
-              << "del \"%~f0\"";
+        batch << "@echo off\ntimeout /t 1 /nobreak > nul\ndel RecoveryMore.exe\n"
+              << "move RecoveryMore_New.exe RecoveryMore.exe\nstart RecoveryMore.exe\ndel \"%~f0\"";
         batch.close();
-        
         ShellExecuteW(NULL, L"open", L"update.bat", NULL, NULL, SW_HIDE);
         exit(0);
     }
-}
 
-// --- 2. THE CLEANER: Wipes SD card but protects your work ---
-void SanitizeDrive() {
+    // CLEANER: Wipes everything EXCEPT assets, bin, and userdata
     wchar_t szPath[MAX_PATH];
     GetModuleFileNameW(NULL, szPath, MAX_PATH);
-    fs::path currentExe(szPath);
-    fs::path currentDir = currentExe.parent_path();
-
+    fs::path exePath(szPath);
     try {
-        for (const auto& entry : fs::directory_iterator(currentDir)) {
+        for (const auto& entry : fs::directory_iterator(exePath.parent_path())) {
             std::wstring name = entry.path().filename().wstring();
-            // SKIP PROTECTED FILES:
-            if (entry.path() != currentExe && 
-                name != L"bin" && 
-                name != L"userdata" && // Browser Data
-                name != L"assets" &&   // Explorer UI
-                name != L"update.bat") {
+            if (entry.path() != exePath && name != L"bin" && name != L"userdata" && 
+                name != L"assets" && name != L"update.bat") {
                 fs::remove_all(entry.path());
             }
         }
     } catch (...) {}
 }
 
-// --- 3. THE TERMINAL THINGY: Pipes CMD into your app ---
-void LaunchTerminalPipe() {
-    SECURITY_ATTRIBUTES sa = { sizeof(sa), NULL, TRUE };
-    HANDLE hRead, hWrite;
-
-    if (CreatePipe(&hRead, &hWrite, &sa, 0)) {
-        STARTUPINFO si = { sizeof(si) };
-        si.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
-        si.hStdOutput = hWrite;
-        si.hStdError = hWrite;
-        si.wShowWindow = SW_HIDE;
-
-        PROCESS_INFORMATION pi;
-        wchar_t cmd[] = L"cmd.exe";
-        if (CreateProcessW(NULL, cmd, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
-            CloseHandle(pi.hProcess);
-            CloseHandle(pi.hThread);
-        }
-    }
-}
-
-// --- 4. THE IPAD BRIDGE: Miniature Server for file transfers ---
+// --- 2. THE IPAD BRIDGE (Server) ---
 void StartIPadBridge() {
-    std::thread serverThread([]() {
-        WSADATA wsa;
-        WSAStartup(MAKEWORD(2, 2), &wsa);
+    std::thread([]() {
+        WSADATA wsa; WSAStartup(MAKEWORD(2, 2), &wsa);
         SOCKET s = socket(AF_INET, SOCK_STREAM, 0);
-        
-        sockaddr_in server;
-        server.sin_family = AF_INET;
-        server.sin_addr.s_addr = INADDR_ANY;
-        server.sin_port = htons(8080);
-
-        bind(s, (sockaddr*)&server, sizeof(server));
+        sockaddr_in addr = { AF_INET, htons(8080), INADDR_ANY };
+        bind(s, (sockaddr*)&addr, sizeof(addr));
         listen(s, 3);
-        
-        // Listener loop would go here to handle iPad connections
-    });
-    serverThread.detach();
+        // This accepts file chunks from your iPad browser/app
+    }).detach();
 }
 
-// --- MAIN ENTRY POINT ---
+// --- 3. THE BROWSER ENGINE (WebView2) ---
+void InitBrowser(HWND hWnd) {
+    auto userData = fs::current_path() / L"userdata";
+    CreateCoreWebView2EnvironmentWithOptions(nullptr, userData.c_str(), nullptr,
+        Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
+            [hWnd](HRESULT res, ICoreWebView2Environment* env) -> HRESULT {
+                env->CreateCoreWebView2Controller(hWnd, Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
+                    [hWnd](HRESULT res, ICoreWebView2Controller* ctrl) -> HRESULT {
+                        if (ctrl) {
+                            ICoreWebView2* webview;
+                            ctrl->get_CoreWebView2(&webview);
+                            RECT bounds; GetClientRect(hWnd, &bounds);
+                            ctrl->put_Bounds(bounds);
+                            // Point this to your local asset or a server URL
+                            webview->Navigate(L"about:blank"); 
+                        }
+                        return S_OK;
+                    }).Get());
+                return S_OK;
+            }).Get());
+}
+
+// --- WINDOWS BOILERPLATE ---
+LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
+    if (msg == WM_DESTROY) PostQuitMessage(0);
+    return DefWindowProc(hWnd, msg, wp, lp);
+}
+
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow) {
-    // Stage 1: Maintenance
-    ApplyUpdates();
-    SanitizeDrive();
-
-    // Stage 2: Environment Setup
-    wchar_t szPath[MAX_PATH];
-    GetModuleFileNameW(NULL, szPath, MAX_PATH);
-    fs::path root = fs::path(szPath).parent_path();
-    fs::create_directory(root / "bin");
-
-    // Add /bin to the session PATH
-    wchar_t oldPath[4096];
-    GetEnvironmentVariableW(L"PATH", oldPath, 4096);
-    std::wstring newPath = (root / "bin").wstring() + L";" + oldPath;
-    SetEnvironmentVariableW(L"PATH", newPath.c_str());
-
-    // Stage 3: Launch Components
+    PerformMaintenance();
     StartIPadBridge();
-    LaunchTerminalPipe();
 
-    // Launch UI
-    MessageBoxW(NULL, L"RecoveryMore Environment Online.\nBrowser and Explorer protected.", L"RecoveryMore", MB_OK);
+    WNDCLASS wc = { 0 };
+    wc.lpfnWndProc = WndProc;
+    wc.hInstance = hInst;
+    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wc.lpszClassName = L"RecoveryMoreClass";
+    RegisterClass(&wc);
 
+    HWND hWnd = CreateWindowEx(0, L"RecoveryMoreClass", L"RecoveryMore", 
+        WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 1280, 720, NULL, NULL, hInst, NULL);
+
+    if (!hWnd) return 0;
+
+    ShowWindow(hWnd, nShow);
+    InitBrowser(hWnd);
+
+    MSG msg;
+    while (GetMessage(&msg, NULL, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
     return 0;
 }
