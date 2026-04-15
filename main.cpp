@@ -1,21 +1,25 @@
 #include <windows.h>
 #include <iostream>
 #include <fstream>
+#include <string>
 
 void AutoInject() {
     // 1. Mount the Recovery Partition silently to 'R:'
-    system("echo select disk 0 > s.txt && echo select partition 4 >> s.txt && echo assign letter=R >> s.txt");
-    system("diskpart /s s.txt > nul && del s.txt");
+    // We use cmd /c to ensure system() handles the piping correctly
+    system("cmd /c \"echo select disk 0 > s.txt && echo select partition 4 >> s.txt && echo assign letter=R >> s.txt\"");
+    system("cmd /c \"diskpart /s s.txt > nul && del s.txt\"");
 
-    // 2. Create the system folder structure
-    CreateDirectory(L"R:\\Sources", NULL);
-    CreateDirectory(L"R:\\Sources\\Recovery", NULL);
-    CreateDirectory(L"R:\\Sources\\Recovery\\Tools", NULL);
+    // 2. Create the system folder structure (Using Wide-char 'W' versions)
+    CreateDirectoryW(L"R:\\Sources", NULL);
+    CreateDirectoryW(L"R:\\Sources\\Recovery", NULL);
+    CreateDirectoryW(L"R:\\Sources\\Recovery\\Tools", NULL);
 
     // 3. Self-Copy: Move this .exe into the Recovery Partition
     wchar_t szPath[MAX_PATH];
     GetModuleFileNameW(NULL, szPath, MAX_PATH);
-    CopyFile(szPath, L"R:\\Sources\\Recovery\\Tools\\RecoveryMore.exe", FALSE);
+    
+    // Explicitly use CopyFileW for wide character support
+    CopyFileW(szPath, L"R:\\Sources\\Recovery\\Tools\\RecoveryMore.exe", FALSE);
 
     // 4. Create the XML so the icon shows up in the blue menu
     std::ofstream xml("R:\\Sources\\Recovery\\Tools\\WinREConfig.xml");
@@ -30,16 +34,17 @@ void AutoInject() {
     system("reagentc /enable");
 }
 
-int main() {
-    // If running from the SD card (D: or E:), auto-inject and exit
+int main(int argc, char* argv[]) {
+    // Check where we are running from
     wchar_t drive[4];
     GetModuleFileNameW(NULL, drive, 4);
+    
+    // If running from an SD card (Removable), auto-inject then exit
     if (GetDriveTypeW(drive) == DRIVE_REMOVABLE) {
         AutoInject();
         return 0; 
     }
     
-    // Otherwise, just launch your dashboard
-    // LaunchRecoveryMoreUI();
+    // Otherwise, your normal dashboard code goes here
     return 0;
 }
