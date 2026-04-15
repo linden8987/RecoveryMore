@@ -4,28 +4,20 @@ project(RecoveryMore)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Force Static Linking (This is what makes it "No DLLs")
-set(VCPKG_TARGET_TRIPLET "x64-windows-static")
-set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+# Force MSVC to ignore header conflicts
+add_definitions(-DWIN32_LEAN_AND_MEAN)
 
-# Find your VCPKG packages here (e.g., your browser engine)
-# find_package(CEF REQUIRED) 
+# Locate WebView2 via vcpkg
+find_package(WebView2 REQUIRED)
 
-add_executable(RecoveryMore WIN32
-    src/main.cpp
-    # Add your other files here so they compile
-    # src/browser_engine.cpp
-    # src/file_explorer.cpp
-)
+add_executable(RecoveryMore src/main.cpp)
 
-# Tells the compiler where to find your .h files
-target_include_directories(RecoveryMore PRIVATE src)
-
-# Link Windows System Libraries
+# Link the libraries and the include directories
 target_link_libraries(RecoveryMore PRIVATE 
-    Shlwapi.lib 
-    Shell32.lib 
-    User32.lib 
-    Gdi32.lib 
-    Advapi32.lib
+    WebView2::WebView2
+    ws2_32 
+    shell32
 )
+
+# Set as a Windows GUI app (hides the console)
+set_target_properties(RecoveryMore PROPERTIES WIN32_EXECUTABLE TRUE)
