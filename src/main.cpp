@@ -1,119 +1,94 @@
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-
-#include <winsock2.h>
 #include <windows.h>
-#include <ws2tcpip.h>
-#include <shellapi.h>
-#include <fstream>
-#include <string>
 #include <filesystem>
-#include <thread>
-#include <wrl.h>
-#include <WebView2.h>
+#include "app.h"             
+#include "browser_engine.h"  
+#include "client_handler.h"  
+#include "download_handler.h"
 
 namespace fs = std::filesystem;
-using namespace Microsoft::WRL;
 
-#pragma comment(lib, "ws2_32.lib")
-#pragma comment(lib, "shell32.lib")
-
-// --- 1. MAINTENANCE: UPDATER & DRIVE CLEANER ---
-void PerformMaintenance() {
-    // UPDATER: Swaps in new builds
-    if (fs::exists("RecoveryMore_New.exe")) {
-        std::ofstream batch("update.bat");
-        batch << "@echo off\ntimeout /t 1 /nobreak > nul\ndel RecoveryMore.exe\n"
-              << "move RecoveryMore_New.exe RecoveryMore.exe\nstart RecoveryMore.exe\ndel \"%~f0\"";
-        batch.close();
-        ShellExecuteW(NULL, L"open", L"update.bat", NULL, NULL, SW_HIDE);
-        exit(0);
-    }
-
-    // CLEANER: Protects the project core while wiping the rest
-    wchar_t szPath[MAX_PATH];
-    GetModuleFileNameW(NULL, szPath, MAX_PATH);
-    fs::path exePath(szPath);
-    try {
-        for (const auto& entry : fs::directory_iterator(exePath.parent_path())) {
-            std::wstring name = entry.path().filename().wstring();
-            if (entry.path() != exePath && name != L"bin" && name != L"userdata" && 
-                name != L"assets" && name != L"update.bat") {
-                fs::remove_all(entry.path());
-            }
-        }
-    } catch (...) {}
+// Fixes the ghosting trail by forcing a repaint on movement
+void CleanGhosting(HWND hWnd) {
+    InvalidateRect(hWnd, NULL, TRUE);
+    UpdateWindow(hWnd);
 }
 
-// --- 2. BROWSER ENGINE (WebView2) ---
-void InitBrowser(HWND hWnd) {
-    auto userData = fs::current_path() / L"userdata";
-    CreateCoreWebView2EnvironmentWithOptions(nullptr, userData.c_str(), nullptr,
-        Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
-            [hWnd](HRESULT res, ICoreWebView2Environment* env) -> HRESULT {
-                env->CreateCoreWebView2Controller(hWnd, Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
-                    [hWnd](HRESULT res, ICoreWebView2Controller* ctrl) -> HRESULT {
-                        if (ctrl) {
-                            ICoreWebView2* webview;
-                            ctrl->get_CoreWebView2(&webview);
-                            RECT bounds; GetClientRect(hWnd, &bounds);
-                            ctrl->put_Bounds(bounds);
-                            webview->Navigate(L"https://www.google.com"); 
-                        }
-                        return S_OK;
-                    }).Get());
-                return S_OK;
-            }).Get());
-}
-
-// --- 3. BACKGROUND SERVICES (iPad Bridge) ---
-void StartBridge() {
-    std::thread([]() {
-        WSADATA wsa; WSAStartup(MAKEWORD(2, 2), &wsa);
-        SOCKET s = socket(AF_INET, SOCK_STREAM, 0);
-        sockaddr_in addr = { AF_INET, htons(8080), INADDR_ANY };
-        bind(s, (sockaddr*)&addr, sizeof(addr));
-        listen(s, 3);
-    }).detach();
-}
-
-// --- WINDOWS BOILERPLATE ---
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
-    if (msg == WM_DESTROY) PostQuitMessage(0);
+    switch (msg) {
+        case WM_MOVE:
+        case WM_SIZE:
+            CleanGhosting(hWnd); 
+            break;
+        case WM_ERASEBKGND:
+            return 1; 
+        case WM_DESTROY:
+            CefQuitMessageLoop();
+            return 0;
+    }
     return DefWindowProcW(hWnd, msg, wp, lp);
 }
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow) {
-    // AUTO-CREATE ENVIRONMENT FOLDERS
+    // 1. Mandatory Folder Creation
     try {
-        fs::create_directories("bin");
-        fs::create_directories("assets");
         fs::create_directories("userdata");
+        fs::create_directories("downloads");
     } catch (...) {}
 
-    PerformMaintenance();
-    StartBridge();
+    // 2. Initialize CEF Application logic (from app.cpp)
+    CefMainArgs main_args(hInst);
+    CefRefPtr<App> app(new App());
 
+    // Execute sub-processes (Mandatory for CEF multi-process architecture)
+    int exit_code = CefExecuteProcess(main_args, app.get(), nullptr);
+    if (exit_code >= 0) return exit_code;
+
+    // 3. Detailed CEF Settings
+    CefSettings settings;
+    settings.no_sandbox = true;
+    settings.windowless_rendering_enabled = false;
+    
+    std::wstring cache = fs::current_path().wstring() + L"/userdata";
+    CefString(&settings.cache_path).FromWString(cache);
+
+    // WINPE STABILITY: Disable GPU to prevent the "Frozen Frame" issue
+    CefCommandLine::GetGlobalCommandLine()->AppendSwitch("disable-gpu");
+    CefCommandLine::GetGlobalCommandLine()->AppendSwitch("disable-gpu-compositing");
+    CefCommandLine::GetGlobalCommandLine()->AppendSwitch("enable-begin-frame-scheduling");
+
+    CefInitialize(main_args, settings, app.get(), nullptr);
+
+    // 4. Create Host Window
     WNDCLASSW wc = { 0 };
     wc.lpfnWndProc = WndProc;
     wc.hInstance = hInst;
+    wc.hIcon = LoadIcon(hInst, MAKEINTRESOURCE(101)); 
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-    wc.lpszClassName = L"RecoveryMoreClass";
+    wc.lpszClassName = L"RecoveryMoreMain";
     RegisterClassW(&wc);
 
-    HWND hWnd = CreateWindowExW(0, L"RecoveryMoreClass", L"RecoveryMore", 
+    HWND hWnd = CreateWindowExW(0, L"RecoveryMoreMain", L"RecoveryMore", 
         WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 1280, 720, NULL, NULL, hInst, NULL);
 
-    if (!hWnd) return 0;
-
     ShowWindow(hWnd, nShow);
-    InitBrowser(hWnd);
 
-    MSG msg;
-    while (GetMessageW(&msg, NULL, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessageW(&msg);
-    }
+    // 5. Integrate BrowserEngine & ClientHandler
+    // This part ensures your client_handler.cpp is actually managing the browser
+    CefWindowInfo window_info;
+    window_info.SetAsChild(hWnd, {0, 0, 1280, 720});
+
+    CefBrowserSettings browser_settings;
+    
+    // Create the browser using your custom ClientHandler (which links to DownloadHandler)
+    CefRefPtr<ClientHandler> handler(new ClientHandler());
+    CefBrowserHost::CreateBrowser(window_info, handler.get(), "https://www.google.com", browser_settings, nullptr, nullptr);
+
+    // Link the engine to this main window
+    BrowserEngine::GetInstance()->Init(hWnd, hInst);
+
+    // Start the Chromium loop
+    CefRunMessageLoop();
+    CefShutdown();
+
     return 0;
 }
