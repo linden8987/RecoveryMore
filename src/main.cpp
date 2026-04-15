@@ -19,9 +19,9 @@ using namespace Microsoft::WRL;
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "shell32.lib")
 
-// --- 1. MAINTENANCE & PROTECTION ---
+// --- 1. MAINTENANCE SUITE ---
 void PerformMaintenance() {
-    // UPDATER: Swaps RecoveryMore_New.exe into place
+    // UPDATER
     if (fs::exists("RecoveryMore_New.exe")) {
         std::ofstream batch("update.bat");
         batch << "@echo off\ntimeout /t 1 /nobreak > nul\ndel RecoveryMore.exe\n"
@@ -31,7 +31,7 @@ void PerformMaintenance() {
         exit(0);
     }
 
-    // CLEANER: Wipes everything EXCEPT assets, bin, and userdata
+    // CLEANER (Protects your folders)
     wchar_t szPath[MAX_PATH];
     GetModuleFileNameW(NULL, szPath, MAX_PATH);
     fs::path exePath(szPath);
@@ -46,19 +46,7 @@ void PerformMaintenance() {
     } catch (...) {}
 }
 
-// --- 2. THE IPAD BRIDGE (Server) ---
-void StartIPadBridge() {
-    std::thread([]() {
-        WSADATA wsa; WSAStartup(MAKEWORD(2, 2), &wsa);
-        SOCKET s = socket(AF_INET, SOCK_STREAM, 0);
-        sockaddr_in addr = { AF_INET, htons(8080), INADDR_ANY };
-        bind(s, (sockaddr*)&addr, sizeof(addr));
-        listen(s, 3);
-        // This accepts file chunks from your iPad browser/app
-    }).detach();
-}
-
-// --- 3. THE BROWSER ENGINE (WebView2) ---
+// --- 2. BROWSER ENGINE (Google as Homepage) ---
 void InitBrowser(HWND hWnd) {
     auto userData = fs::current_path() / L"userdata";
     CreateCoreWebView2EnvironmentWithOptions(nullptr, userData.c_str(), nullptr,
@@ -69,15 +57,29 @@ void InitBrowser(HWND hWnd) {
                         if (ctrl) {
                             ICoreWebView2* webview;
                             ctrl->get_CoreWebView2(&webview);
+                            
+                            // Make browser fill the entire window
                             RECT bounds; GetClientRect(hWnd, &bounds);
                             ctrl->put_Bounds(bounds);
-                            // Point this to your local asset or a server URL
-                            webview->Navigate(L"google.com"); 
+                            
+                            // SET HOMEPAGE TO GOOGLE
+                            webview->Navigate(L"https://www.google.com"); 
                         }
                         return S_OK;
                     }).Get());
                 return S_OK;
             }).Get());
+}
+
+// --- 3. BACKGROUND SERVICES ---
+void StartBridge() {
+    std::thread([]() {
+        WSADATA wsa; WSAStartup(MAKEWORD(2, 2), &wsa);
+        SOCKET s = socket(AF_INET, SOCK_STREAM, 0);
+        sockaddr_in addr = { AF_INET, htons(8080), INADDR_ANY };
+        bind(s, (sockaddr*)&addr, sizeof(addr));
+        listen(s, 3);
+    }).detach();
 }
 
 // --- WINDOWS BOILERPLATE ---
@@ -88,7 +90,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow) {
     PerformMaintenance();
-    StartIPadBridge();
+    StartBridge();
 
     WNDCLASS wc = { 0 };
     wc.lpfnWndProc = WndProc;
