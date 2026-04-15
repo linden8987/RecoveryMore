@@ -12,7 +12,7 @@ echo "System detected: $ARCH"
 
 # 2. Set the Download URL
 # This points to the latest EXE built by your GitHub Actions
-REPO_URL="https://github.com/linden8987/RecoveryMore/releases/latest/download/RecoveryMore.exe"
+REPO_URL="https://github.com/linden8987/RecoveryMore/releases/latest/download/RecoveryMore.zip"
 
 # 3. Create a temporary workspace in RAM
 mkdir -p /tmp/RecoveryMore
