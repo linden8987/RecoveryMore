@@ -19,9 +19,9 @@ using namespace Microsoft::WRL;
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "shell32.lib")
 
-// --- 1. MAINTENANCE SUITE ---
+// --- 1. MAINTENANCE: UPDATER & DRIVE CLEANER ---
 void PerformMaintenance() {
-    // UPDATER
+    // UPDATER: Swaps in new builds
     if (fs::exists("RecoveryMore_New.exe")) {
         std::ofstream batch("update.bat");
         batch << "@echo off\ntimeout /t 1 /nobreak > nul\ndel RecoveryMore.exe\n"
@@ -31,7 +31,7 @@ void PerformMaintenance() {
         exit(0);
     }
 
-    // CLEANER (Protects your folders)
+    // CLEANER: Protects the project core while wiping the rest
     wchar_t szPath[MAX_PATH];
     GetModuleFileNameW(NULL, szPath, MAX_PATH);
     fs::path exePath(szPath);
@@ -46,7 +46,7 @@ void PerformMaintenance() {
     } catch (...) {}
 }
 
-// --- 2. BROWSER ENGINE (Google as Homepage) ---
+// --- 2. BROWSER ENGINE (WebView2) ---
 void InitBrowser(HWND hWnd) {
     auto userData = fs::current_path() / L"userdata";
     CreateCoreWebView2EnvironmentWithOptions(nullptr, userData.c_str(), nullptr,
@@ -57,12 +57,8 @@ void InitBrowser(HWND hWnd) {
                         if (ctrl) {
                             ICoreWebView2* webview;
                             ctrl->get_CoreWebView2(&webview);
-                            
-                            // Make browser fill the entire window
                             RECT bounds; GetClientRect(hWnd, &bounds);
                             ctrl->put_Bounds(bounds);
-                            
-                            // SET HOMEPAGE TO GOOGLE
                             webview->Navigate(L"https://www.google.com"); 
                         }
                         return S_OK;
@@ -71,7 +67,7 @@ void InitBrowser(HWND hWnd) {
             }).Get());
 }
 
-// --- 3. BACKGROUND SERVICES ---
+// --- 3. BACKGROUND SERVICES (iPad Bridge) ---
 void StartBridge() {
     std::thread([]() {
         WSADATA wsa; WSAStartup(MAKEWORD(2, 2), &wsa);
@@ -85,21 +81,28 @@ void StartBridge() {
 // --- WINDOWS BOILERPLATE ---
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
     if (msg == WM_DESTROY) PostQuitMessage(0);
-    return DefWindowProc(hWnd, msg, wp, lp);
+    return DefWindowProcW(hWnd, msg, wp, lp);
 }
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow) {
+    // AUTO-CREATE ENVIRONMENT FOLDERS
+    try {
+        fs::create_directories("bin");
+        fs::create_directories("assets");
+        fs::create_directories("userdata");
+    } catch (...) {}
+
     PerformMaintenance();
     StartBridge();
 
-    WNDCLASS wc = { 0 };
+    WNDCLASSW wc = { 0 };
     wc.lpfnWndProc = WndProc;
     wc.hInstance = hInst;
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.lpszClassName = L"RecoveryMoreClass";
-    RegisterClass(&wc);
+    RegisterClassW(&wc);
 
-    HWND hWnd = CreateWindowEx(0, L"RecoveryMoreClass", L"RecoveryMore", 
+    HWND hWnd = CreateWindowExW(0, L"RecoveryMoreClass", L"RecoveryMore", 
         WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 1280, 720, NULL, NULL, hInst, NULL);
 
     if (!hWnd) return 0;
@@ -108,9 +111,9 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow) {
     InitBrowser(hWnd);
 
     MSG msg;
-    while (GetMessage(&msg, NULL, 0, 0)) {
+    while (GetMessageW(&msg, NULL, 0, 0)) {
         TranslateMessage(&msg);
-        DispatchMessage(&msg);
+        DispatchMessageW(&msg);
     }
     return 0;
 }
