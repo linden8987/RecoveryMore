@@ -3,12 +3,15 @@ project(RecoveryMore)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# 1. Standard Windows definitions
 add_definitions(-DUNICODE -D_UNICODE -DWIN32_LEAN_AND_MEAN)
 
-include_directories("${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include")
-link_directories("${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")
+# 2. Find CEF via vcpkg
+# This looks for the wrapper files provided by the vcpkg port
+find_package(cef CONFIG REQUIRED)
 
-# STICKING TO THE LIST: Using every implementation file
+# 3. Add all your source files
 add_executable(RecoveryMore 
     src/main.cpp 
     src/app.cpp
@@ -18,10 +21,16 @@ add_executable(RecoveryMore
     src/resources.rc
 )
 
+# 4. Link CEF and its required system libs
+# cef::libcef is the target name used by the vcpkg config
 target_link_libraries(RecoveryMore PRIVATE 
-    libcef 
-    libcef_dll_wrapper
-    ws2_32 shell32 user32 gdi32 ole32
+    cef::libcef
+    ws2_32 
+    shell32 
+    user32 
+    gdi32 
+    ole32
 )
 
+# 5. Build as a Windows GUI app
 set_target_properties(RecoveryMore PROPERTIES WIN32_EXECUTABLE TRUE)
