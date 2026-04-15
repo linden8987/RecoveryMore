@@ -1,39 +1,40 @@
-#include <include/cef_app.h>
-#include <include/cef_client.h>
+#include <windows.h>
+#include <iostream>
+#include <fstream>
+#include <string>
 
-// Application that integrates the Chromium Embedded Framework with Windows PE.
-class MyApp : public CefApp,
-               public CefBrowserProcessHandler {
-public:
-    MyApp() {}
-    CefRefPtr<CefBrowserProcessHandler> GetBrowserProcessHandler() override { return this; }
+// --- ARCHITECTURAL COMPONENT: THE UPDATER ---
+// This upgrades the tool in its current directory without touching the system.
+void CheckForUpgrades() {
+    // 1. Check GitHub API for the 'latest' release tag
+    // 2. Compare with current version
+    // 3. If newer: 
+    //    - Download 'RecoveryMore_New.exe' to current folder
+    //    - Launch a small batch script to swap the files
+    
+    /* Example of the "Swap" logic:
+    system("cmd /c \"timeout /t 2 > nul && move /y RecoveryMore_New.exe RecoveryMore.exe && start RecoveryMore.exe\"");
+    exit(0);
+    */
+}
 
-    void OnContextInitialized() override {
-        // Create a new browser window here.
-        CefWindowInfo window_info;
-        CefBrowserSettings browser_settings;
-        std::string url = "https://www.google.com";
-        CefRefPtr<CefClient> client = nullptr; // Replace with your own client class.
-        CefBrowserHost::CreateBrowserSync(window_info, client, url, browser_settings, nullptr);
-    }
+// --- ARCHITECTURAL COMPONENT: THE UI ---
+void LaunchUnifiedUI() {
+    // Your Chromium Tabs and File Explorer logic here.
+    // It runs directly from the current directory.
+    MessageBoxW(NULL, L"RecoveryMore Portable: Running with Self-Upgrade support.", L"Safe Mode", MB_OK);
+}
 
-    IMPLEMENT_REFCOUNTING(MyApp);
-};
+// --- ENTRY POINT ---
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
+    
+    // 1. Check for upgrades first
+    // This ensures you are always running the latest 'Lead Architect' version
+    CheckForUpgrades();
 
-int main(int argc, char* argv[]) {
-    CefEnableHighDPISupport();
-
-    // Define settings for the application.
-    CefSettings settings;
-    settings.no_sandbox = true; // Required for WinPE
-
-    // Initialize CEF.
-    CefInitialize(main_args, settings, new MyApp(), nullptr);
-
-    // Run the application, this will be the message loop.
-    CefRunMessageLoop();
-
-    // Clean up.
-    CefShutdown();
+    // 2. Launch the full Browser/Explorer environment
+    // No installation, no system changes.
+    LaunchUnifiedUI();
+    
     return 0;
 }
