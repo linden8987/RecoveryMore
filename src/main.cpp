@@ -72,7 +72,7 @@ void InitBrowser(HWND hWnd) {
                             RECT bounds; GetClientRect(hWnd, &bounds);
                             ctrl->put_Bounds(bounds);
                             // Point this to your local asset or a server URL
-                            webview->Navigate(L"about:blank"); 
+                            webview->Navigate(L"google.com"); 
                         }
                         return S_OK;
                     }).Get());
