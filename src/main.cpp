@@ -12,7 +12,7 @@ public:
         // Create a new browser window here.
         CefWindowInfo window_info;
         CefBrowserSettings browser_settings;
-        std::string url = "http://example.com";
+        std::string url = "https://www.google.com";
         CefRefPtr<CefClient> client = nullptr; // Replace with your own client class.
         CefBrowserHost::CreateBrowserSync(window_info, client, url, browser_settings, nullptr);
     }
