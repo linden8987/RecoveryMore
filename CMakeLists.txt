@@ -6,11 +6,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_definitions(-DUNICODE -D_UNICODE -DWIN32_LEAN_AND_MEAN)
 
-# 1. Manually define the paths since find_package(cef) failed
+# POINTING TO THE TRIPLET ROOT
+# This allows #include "include/cef_app.h" to resolve correctly
 set(CEF_ROOT "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
-include_directories("${CEF_ROOT}/include")
+include_directories("${CEF_ROOT}")
 
-# 2. Add all your implementation files
+# COMPILING EVERY FILE IN YOUR LIST
 add_executable(RecoveryMore 
     src/main.cpp 
     src/app.cpp
@@ -20,7 +21,7 @@ add_executable(RecoveryMore
     src/resources.rc
 )
 
-# 3. Explicitly link the libraries from the vcpkg lib folder
+# Linker paths for the libraries
 link_directories("${CEF_ROOT}/lib")
 
 target_link_libraries(RecoveryMore PRIVATE 
