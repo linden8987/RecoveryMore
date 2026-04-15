@@ -6,22 +6,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_definitions(-DUNICODE -D_UNICODE -DWIN32_LEAN_AND_MEAN)
 
-# 1. FIND THE CEF ROOT DYNAMICALLY
-# This ensures that even in the GitHub Actions runner, we find the folder
-# that contains the 'include' directory.
-find_path(CEF_INCLUDE_DIR "include/cef_app.h"
-    PATHS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}"
-    NO_DEFAULT_PATH
-)
+# Standard vcpkg include path
+include_directories("${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include")
 
-if(NOT CEF_INCLUDE_DIR)
-    message(FATAL_ERROR "Could not find CEF include directory containing include/cef_app.h")
-endif()
-
-# We include the directory ABOVE 'include' so your #include "include/..." works.
-include_directories("${CEF_INCLUDE_DIR}")
-
-# 2. USE EVERY FILE IN THE REPO
 add_executable(RecoveryMore 
     src/main.cpp 
     src/app.cpp
@@ -31,7 +18,6 @@ add_executable(RecoveryMore
     src/resources.rc
 )
 
-# 3. LINKING
 link_directories("${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")
 
 target_link_libraries(RecoveryMore PRIVATE 
