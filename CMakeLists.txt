@@ -1,32 +1,31 @@
-# CMakeLists.txt Configuration for CEF Static Build
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.15)
 project(RecoveryMore)
 
-# Set CEF options
-set(CEF_USE_STATIC true)
-set(CEF_USE_LIBS libcef.a)
-set(CEF_USE_TAB_SUPPORT true)
-set(CEF_USE_DOWNLOADS true)
-set(CEF_USE_FILE_EXPLORER true)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Add other necessary CEF configuration
-add_definitions(-DUSE_CEF_STATIC)
-include_directories(${CEF_INCLUDE_DIR})
+# Force Static Linking (This is what makes it "No DLLs")
+set(VCPKG_TARGET_TRIPLET "x64-windows-static")
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-# Specify the source files and include directories
-set(SOURCES
-    main.cpp
-    ... // other source files
+# Find your VCPKG packages here (e.g., your browser engine)
+# find_package(CEF REQUIRED) 
+
+add_executable(RecoveryMore WIN32
+    src/main.cpp
+    # Add your other files here so they compile
+    # src/browser_engine.cpp
+    # src/file_explorer.cpp
 )
 
-add_executable(RecoveryMore ${SOURCES})
-target_link_libraries(RecoveryMore ${CEF_USE_LIBS})
+# Tells the compiler where to find your .h files
+target_include_directories(RecoveryMore PRIVATE src)
 
-# Additional configurations for embedding CEF
-set_target_properties(RecoveryMore PROPERTIES
-    CXX_STANDARD 17
-    CXX_STANDARD_REQUIRED YES
+# Link Windows System Libraries
+target_link_libraries(RecoveryMore PRIVATE 
+    Shlwapi.lib 
+    Shell32.lib 
+    User32.lib 
+    Gdi32.lib 
+    Advapi32.lib
 )
-
-# Specify any needed components for static linking
-#... (further configuration relevant to your project)
