@@ -4,13 +4,18 @@ project(RecoveryMore)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Force Unicode and Windows stability
 add_definitions(-DUNICODE -D_UNICODE -DWIN32_LEAN_AND_MEAN)
 
-# 1. THE TRICK: We include the folder ABOVE 'include'
-# This allows your code's "include/..." path to resolve correctly.
-include_directories("${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+# THE FIX: Direct Compiler Flags
+# This tells MSVC explicitly to search the root of vcpkg for your "include/..." path
+set(VCPKG_ROOT "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+add_compile_options(/I "${VCPKG_ROOT}")
 
-# 2. SOURCE FILES (Including everything in your repo)
+# Still adding these as backups
+include_directories("${VCPKG_ROOT}")
+
+# COMPILING EVERY FILE
 add_executable(RecoveryMore 
     src/main.cpp 
     src/app.cpp
@@ -20,17 +25,12 @@ add_executable(RecoveryMore
     src/resources.rc
 )
 
-# 3. LINKER SETTINGS
-link_directories("${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")
+link_directories("${VCPKG_ROOT}/lib")
 
 target_link_libraries(RecoveryMore PRIVATE 
     libcef 
     libcef_dll_wrapper
-    ws2_32 
-    shell32 
-    user32 
-    gdi32 
-    ole32
+    ws2_32 shell32 user32 gdi32 ole32
 )
 
 set_target_properties(RecoveryMore PROPERTIES WIN32_EXECUTABLE TRUE)
