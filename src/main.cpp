@@ -1,14 +1,14 @@
 #include <windows.h>
 #include <filesystem>
-#include "app.h"             
-#include "browser_engine.h"  
-#include "client_handler.h"  
+#include "app.h"
+#include "browser_engine.h"
+#include "client_handler.h"
 #include "download_handler.h"
 
 namespace fs = std::filesystem;
 
-// Fixes the ghosting trail by forcing a repaint on movement
-void CleanGhosting(HWND hWnd) {
+// Fixes the "Solitaire" ghosting trail in WinPE
+void ClearGhosting(HWND hWnd) {
     InvalidateRect(hWnd, NULL, TRUE);
     UpdateWindow(hWnd);
 }
@@ -17,7 +17,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
         case WM_MOVE:
         case WM_SIZE:
-            CleanGhosting(hWnd); 
+            ClearGhosting(hWnd); 
             break;
         case WM_ERASEBKGND:
             return 1; 
@@ -29,64 +29,56 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
 }
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow) {
-    // 1. Mandatory Folder Creation
+    // 1. Setup local folders on the F: drive
     try {
         fs::create_directories("userdata");
         fs::create_directories("downloads");
     } catch (...) {}
 
-    // 2. Initialize CEF Application logic (from app.cpp)
+    // 2. Initialize CEF Application logic (from your app.cpp)
     CefMainArgs main_args(hInst);
     CefRefPtr<App> app(new App());
 
-    // Execute sub-processes (Mandatory for CEF multi-process architecture)
     int exit_code = CefExecuteProcess(main_args, app.get(), nullptr);
     if (exit_code >= 0) return exit_code;
 
-    // 3. Detailed CEF Settings
+    // 3. Configure CEF Settings
     CefSettings settings;
     settings.no_sandbox = true;
-    settings.windowless_rendering_enabled = false;
-    
     std::wstring cache = fs::current_path().wstring() + L"/userdata";
     CefString(&settings.cache_path).FromWString(cache);
 
-    // WINPE STABILITY: Disable GPU to prevent the "Frozen Frame" issue
+    // WINPE STABILITY: Disable GPU to prevent the blue frame glitch
     CefCommandLine::GetGlobalCommandLine()->AppendSwitch("disable-gpu");
     CefCommandLine::GetGlobalCommandLine()->AppendSwitch("disable-gpu-compositing");
-    CefCommandLine::GetGlobalCommandLine()->AppendSwitch("enable-begin-frame-scheduling");
 
     CefInitialize(main_args, settings, app.get(), nullptr);
 
-    // 4. Create Host Window
+    // 4. Create Main Window with the Gold Icon (ID 101)
     WNDCLASSW wc = { 0 };
     wc.lpfnWndProc = WndProc;
     wc.hInstance = hInst;
-    wc.hIcon = LoadIcon(hInst, MAKEINTRESOURCE(101)); 
+    wc.hIcon = LoadIcon(hInst, MAKEINTRESOURCE(101)); // Uses your icon.ico
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.lpszClassName = L"RecoveryMoreMain";
     RegisterClassW(&wc);
 
-    HWND hWnd = CreateWindowExW(0, L"RecoveryMoreMain", L"RecoveryMore", 
+    HWND hWnd = CreateWindowExW(0, L"RecoveryMoreMain", L"RecoveryMore Dashboard", 
         WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 1280, 720, NULL, NULL, hInst, NULL);
 
     ShowWindow(hWnd, nShow);
 
-    // 5. Integrate BrowserEngine & ClientHandler
-    // This part ensures your client_handler.cpp is actually managing the browser
+    // 5. Use all your classes: Engine, Client, and Download handlers
+    BrowserEngine::GetInstance()->Init(hWnd, hInst);
+    
+    // Explicitly using ClientHandler to bridge with DownloadHandler
     CefWindowInfo window_info;
     window_info.SetAsChild(hWnd, {0, 0, 1280, 720});
-
     CefBrowserSettings browser_settings;
-    
-    // Create the browser using your custom ClientHandler (which links to DownloadHandler)
     CefRefPtr<ClientHandler> handler(new ClientHandler());
+    
     CefBrowserHost::CreateBrowser(window_info, handler.get(), "https://www.google.com", browser_settings, nullptr, nullptr);
 
-    // Link the engine to this main window
-    BrowserEngine::GetInstance()->Init(hWnd, hInst);
-
-    // Start the Chromium loop
     CefRunMessageLoop();
     CefShutdown();
 
