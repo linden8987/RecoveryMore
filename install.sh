@@ -20,7 +20,7 @@ cd /tmp/RecoveryMore
 
 # 4. Download the "Graphical Guy"
 echo "Fetching RecoveryMore GUI from GitHub..."
-curl -L $REPO_URL -o RM_GUI.exe
+curl -L $REPO_URL -o RecoveryMore.exe
 
 if [ $? -eq 0 ]; then
     echo "Download Complete."
@@ -28,7 +28,7 @@ if [ $? -eq 0 ]; then
     
     # 5. Launch the EXE
     # In WinRE, we can execute the EXE directly from the shell
-    ./RM_GUI.exe
+    ./RecoveryMore.exe
 else
     echo "Error: Could not reach GitHub. Check your internet connection."
 fi
