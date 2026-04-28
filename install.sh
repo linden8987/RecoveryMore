@@ -1,9 +1,9 @@
 #!/bin/bash
-# RecoveryMore Automated GUI Installer
-# Architect: Linden | Mode: Cloud-Streamed GUI
+# RecoveryMore Installer
+# You can always update with this.
 
 echo "------------------------------------------"
-echo "   RECOVERYMORE: GRAPHICAL INSTALLER    "
+echo "         RECOVERYMORE INSTALLER           "
 echo "------------------------------------------"
 
 # 1. Detection
