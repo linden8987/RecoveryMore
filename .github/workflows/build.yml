@@ -22,9 +22,17 @@ jobs:
           key: vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
           restore-keys: vcpkg-${{ runner.os }}-
 
+      - name: Bootstrap vcpkg
+        run: |
+          if (-not (Test-Path "C:/vcpkg/vcpkg.exe")) {
+            git clone https://github.com/Microsoft/vcpkg.git C:/vcpkg
+            C:/vcpkg/bootstrap-vcpkg.bat -disableMetrics
+          }
+        shell: pwsh
+
       - name: Install WebView2 SDK
-        run: vcpkg install webview2:x64-windows
-        continue-on-error: false
+        run: C:/vcpkg/vcpkg.exe install webview2:x64-windows
+        shell: pwsh
 
       - name: Configure CMake
         run: |
@@ -46,6 +54,7 @@ jobs:
           path: build/
 
       - name: Bundle Dependencies
+        if: success()
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -88,12 +97,14 @@ jobs:
           Compress-Archive -Path dist/* -DestinationPath RecoveryMore.zip -Force
 
       - name: Upload release archive
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: release-package
           path: RecoveryMore.zip
 
       - name: Create Release
+        if: success()
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
