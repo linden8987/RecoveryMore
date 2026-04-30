@@ -10,41 +10,97 @@ permissions:
 jobs:
   check_and_build:
     runs-on: windows-latest
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup vcpkg cache
+        uses: actions/cache@v4
+        with:
+          path: C:/vcpkg
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
+          restore-keys: vcpkg-${{ runner.os }}-
 
       - name: Install WebView2 SDK
         run: vcpkg install webview2:x64-windows
+        continue-on-error: false
 
-      - name: Configure and Build
+      - name: Configure CMake
         run: |
-          cmake -B build -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows
-          cmake --build build --config Release
+          cmake -B build `
+            -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
+            -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -DCMAKE_BUILD_TYPE=Release
+        shell: pwsh
+
+      - name: Build Project
+        run: cmake --build build --config Release --verbose
+        shell: pwsh
+
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: build/
 
       - name: Bundle Dependencies
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path dist
-          Copy-Item "build/Release/RecoveryMore.exe" -Destination "dist/"
-          Copy-Item "C:/vcpkg/installed/x64-windows/bin/WebView2Loader.dll" -Destination "dist/"
+          $ErrorActionPreference = "Stop"
           
-          # The DLL Trinity
-          Copy-Item "C:/Windows/System32/vcruntime140.dll" -Destination "dist/"
-          Copy-Item "C:/Windows/System32/vcruntime140_1.dll" -Destination "dist/"
-          Copy-Item "C:/Windows/System32/msvcp140.dll" -Destination "dist/"
+          # Validate build output exists
+          if (-not (Test-Path "build/Release/RecoveryMore.exe")) {
+            throw "Build failed: RecoveryMore.exe not found"
+          }
           
-          # Use the permanent redirect link for the Standalone Runtime
-          $url = "https://go.microsoft.com/fwlink/p/?LinkId=2124703" 
-          Invoke-WebRequest -Uri $url -OutFile "dist/MicrosoftEdgeWebview2Setup.exe"
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item "build/Release/RecoveryMore.exe" -Destination "dist/" -Verbose
+          Copy-Item "C:/vcpkg/installed/x64-windows/bin/WebView2Loader.dll" -Destination "dist/" -Verbose
           
-          Compress-Archive -Path dist/* -DestinationPath RecoveryMore.zip
+          # The DLL Trinity - with validation
+          $systemDlls = @(
+            "vcruntime140.dll",
+            "vcruntime140_1.dll",
+            "msvcp140.dll"
+          )
+          
+          foreach ($dll in $systemDlls) {
+            $dllPath = "C:/Windows/System32/$dll"
+            if (Test-Path $dllPath) {
+              Copy-Item $dllPath -Destination "dist/" -Verbose
+            } else {
+              Write-Warning "Missing system DLL: $dll"
+            }
+          }
+          
+          # Download WebView2 Runtime
+          $url = "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+          Write-Host "Downloading WebView2 Runtime from: $url"
+          Invoke-WebRequest -Uri $url -OutFile "dist/MicrosoftEdgeWebview2Setup.exe" -Verbose
+          
+          # Verify all files before packaging
+          $files = Get-ChildItem dist/
+          Write-Host "Files to be packaged: $($files.Count)"
+          $files | ForEach-Object { Write-Host "  - $($_.Name)" }
+          
+          Compress-Archive -Path dist/* -DestinationPath RecoveryMore.zip -Force
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-package
+          path: RecoveryMore.zip
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: "RecoveryMore"
+          tag_name: v${{ github.run_number }}
+          name: "RecoveryMore Build #${{ github.run_number }}"
           files: RecoveryMore.zip
-          make_latest: true
+          make_latest: false
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
